@@ -1,3 +1,4 @@
+import 'package:fix_my_campus/Screen/complaint_register.dart';
 import 'package:fix_my_campus/mapScreen.dart';
 import 'package:flutter/material.dart';
 void main() {
@@ -13,7 +14,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: MapScreen()
+      home: ComplaintRegister()
     );
   }
 }
