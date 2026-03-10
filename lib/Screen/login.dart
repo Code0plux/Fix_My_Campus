@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../Auth/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,10 +10,11 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   late AnimationController _animationController;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -26,17 +28,33 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void dispose() {
     _animationController.dispose();
-    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Processing Login')),
+      setState(() => _isLoading = true);
+      
+      final result = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
       );
+      
+      setState(() => _isLoading = false);
+      
+      if (result['success']) {
+        if (result['isAdmin']) {
+          Navigator.pushReplacementNamed(context, '/admin');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['error'] ?? 'Login failed')),
+        );
+      }
     }
   }
 
@@ -90,35 +108,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                         const SizedBox(height: 32),
-                        TextFormField(
-                          controller: _usernameController,
-                          decoration: InputDecoration(
-                            labelText: 'Username',
-                            prefixIcon: const Icon(Icons.person, color: Color(0xFF52734D)),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF91C788)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF91C788)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF52734D), width: 2),
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xFFFEFFDE).withOpacity(0.3),
-                            labelStyle: const TextStyle(color: Color(0xFF52734D)),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter username';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
                         TextFormField(
                           controller: _emailController,
                           decoration: InputDecoration(
@@ -198,7 +187,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               elevation: 3,
                             ),
                             onPressed: _handleLogin,
-                            child: const Text(
+                            child: _isLoading
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : const Text(
                               'Login',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
