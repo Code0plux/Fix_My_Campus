@@ -11,33 +11,17 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   LatLng? selectedLocation;
   final _authService = AuthService();
-
-  void _showComplaintDialog() {
-    print('Dialog button pressed');
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Create Complaint'),
-        content: Text('Do you want to create a complaint for this location?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(
-                context,
-                '/complaint',
-                arguments: selectedLocation,
-              );
-            },
-            child: Text('Create Complaint'),
-          ),
-        ],
-      ),
-    );
+  final MapController _mapController = MapController();
+  
+  @override
+  void initState() {
+    super.initState();
+    // Clear any cached tiles on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {}); // Force rebuild to ensure fresh tiles
+      }
+    });
   }
 
   void _logout() async {
@@ -50,6 +34,7 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Report Issue Location"),
+        backgroundColor: Color(0xFF91C788),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
@@ -79,16 +64,22 @@ class _MapScreenState extends State<MapScreen> {
                       arguments: selectedLocation,
                     );
                   } : null,
-                  child: Text('Create Complaint'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF91C788),
+                  ),
+                  child: Text('Create Complaint', style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
           ),
           Expanded(
             child: FlutterMap(
+              mapController: _mapController,
               options: MapOptions(
                 initialCenter: LatLng(13.0109, 80.2337),
                 initialZoom: 16,
+                maxZoom: 18,
+                minZoom: 10,
                 onTap: (tapPosition, point) {
                   print('Map tapped at: $point');
                   setState(() {
@@ -102,10 +93,9 @@ class _MapScreenState extends State<MapScreen> {
                   urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                   userAgentPackageName: 'com.example.fix_my_campus',
                   maxZoom: 18,
-                  errorTileCallback: (tile, error, stackTrace) {
-                    print('Map tile error: $error');
-                  },
-                  fallbackUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                  minZoom: 1,
+                  retinaMode: false,
+                  tileProvider: NetworkTileProvider(),
                 ),
                 if (selectedLocation != null)
                   MarkerLayer(
@@ -122,22 +112,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
         ],
-      )
-    //   floatingActionButton: selectedLocation != null
-    //       ? FloatingActionButton.extended(
-    //           onPressed: () {
-    //             print('FAB pressed');
-    //             Navigator.pushNamed(
-    //               context,
-    //               '/complaint',
-    //               arguments: selectedLocation,
-    //             );
-    //           },
-    //           // icon: Icon(Icons.add_comment),
-    //           // label: Text('Create Complaint'),
-    //           // backgroundColor: Colors.green,
-    //         )
-    //       : null,
-     );
+      ),
+    );
   }
 }
