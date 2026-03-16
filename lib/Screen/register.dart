@@ -38,9 +38,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration successful! Please login.')),
+          const SnackBar(content: Text('Registration successful! Logging you in...')),
         );
-        Navigator.pop(context);
+        // Auto-navigate to home since session is saved in register method
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['error'] ?? 'Registration failed')),
