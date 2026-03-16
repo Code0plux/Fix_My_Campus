@@ -191,10 +191,6 @@ class _ComplaintRegisterState extends State<ComplaintRegister> {
               label: Text("Upload Image"),
             ),
             SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: _testSupabaseConnection,
-              child: Text("Test Supabase Connection"),
-            ),
             if (_image != null) ...[
               SizedBox(height: 16),
               Image.file(_image!, height: 200),

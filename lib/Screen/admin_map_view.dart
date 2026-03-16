@@ -226,7 +226,7 @@ class _AdminMapViewState extends State<AdminMapView> {
         title: Text('Complaints Map'),
         backgroundColor: Color(0xFF91C788),
         actions: [
-          IconButton(
+            IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () {
               setState(() => isLoading = true);
@@ -268,18 +268,19 @@ class _AdminMapViewState extends State<AdminMapView> {
                         options: MapOptions(
                           initialCenter: clusters.isNotEmpty
                               ? LatLng(clusters.first.latitude, clusters.first.longitude)
-                              : LatLng(0, 0),
+                              : LatLng(13.0109, 80.2337),
                           initialZoom: 13.0,
+                          maxZoom: 18,
+                          minZoom: 10,
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                             userAgentPackageName: 'com.example.fix_my_campus',
                             maxZoom: 18,
-                            errorTileCallback: (tile, error, stackTrace) {
-                              print('Map tile error: $error');
-                            },
-                            fallbackUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                            minZoom: 1,
+                            retinaMode: false,
+                            tileProvider: NetworkTileProvider(),
                           ),
                           MarkerLayer(
                             markers: clusters.map((cluster) {

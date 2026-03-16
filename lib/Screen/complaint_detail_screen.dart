@@ -145,13 +145,9 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                           ),
                           children: [
                             TileLayer(
-                              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              urlTemplate: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+                              subdomains: ['0', '1', '2', '3'],
                               userAgentPackageName: 'com.example.fix_my_campus',
-                              maxZoom: 18,
-                              errorTileCallback: (tile, error, stackTrace) {
-                                print('Map tile error: $error');
-                              },
-                              fallbackUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
                             ),
                             MarkerLayer(
                               markers: [
