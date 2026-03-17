@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'Auth/auth_service.dart';
+import '../../auth/services/auth_service.dart';
 
 class MapScreen extends StatefulWidget {
   @override
