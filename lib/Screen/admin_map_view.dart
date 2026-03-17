@@ -44,14 +44,12 @@ class _AdminMapViewState extends State<AdminMapView> {
 
   List<ComplaintCluster> _createClusters(List<DocumentSnapshot> complaints) {
     List<ComplaintCluster> clusters = [];
-    const double clusterRadius = 0.001; // ~100 meters
+    const double clusterRadius = 0.001;
 
     for (var complaint in complaints) {
       var data = complaint.data() as Map<String, dynamic>;
       double lat = data['latitude'];
       double lng = data['longitude'];
-      
-      // Find existing cluster within radius
       ComplaintCluster? nearbyCluster;
       for (var cluster in clusters) {
         double distance = _calculateDistance(lat, lng, cluster.latitude, cluster.longitude);
@@ -62,10 +60,8 @@ class _AdminMapViewState extends State<AdminMapView> {
       }
       
       if (nearbyCluster != null) {
-        // Add to existing cluster
         nearbyCluster.complaints.add(complaint);
       } else {
-        // Create new cluster
         clusters.add(ComplaintCluster(
           latitude: lat,
           longitude: lng,
@@ -78,7 +74,7 @@ class _AdminMapViewState extends State<AdminMapView> {
   }
 
   double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-    return Distance().as(LengthUnit.Kilometer, LatLng(lat1, lng1), LatLng(lat2, lng2));
+    return Distance().as(LengthUnit.Meter, LatLng(lat1, lng1), LatLng(lat2, lng2));
   }
 
   Color _getClusterColor(List<DocumentSnapshot> complaints) {
