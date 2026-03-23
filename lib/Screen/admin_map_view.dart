@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'complaint_detail_screen.dart';
@@ -76,118 +76,132 @@ class _AdminMapViewState extends State<AdminMapView> {
     return Distance().as(LengthUnit.Meter, LatLng(lat1, lng1), LatLng(lat2, lng2));
   }
 
-  String _getClusterEmoji(List<DocumentSnapshot> complaints) {
-    int pendingCount = 0;
-    int underWorkCount = 0;
-
+  String _getClusterStatus(List<DocumentSnapshot> complaints) {
     for (var complaint in complaints) {
       var data = complaint.data() as Map<String, dynamic>;
-      String status = data['status'] ?? 'pending';
-      if (status == 'pending') {
-        pendingCount++;
-      } else if (status == 'under_work') {
-        underWorkCount++;
-      }
+      if ((data['status'] ?? 'pending') == 'pending') return 'pending';
     }
-
-    if (pendingCount > 0) return '🔴'; // Red circle for pending
-    if (underWorkCount > 0) return '🟠'; // Orange circle for under work
-    return '🟢'; // Green circle (shouldn't appear as fixed are filtered)
+    return 'under_work';
   }
 
   void _showClusterDialog(ComplaintCluster cluster) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${cluster.complaints.length} Complaint(s) at this location'),
-        content: Container(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: cluster.complaints.length,
-            itemBuilder: (context, index) {
-              var complaint = cluster.complaints[index];
-              var data = complaint.data() as Map<String, dynamic>;
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: data['imageUrl'] != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: CachedNetworkImage(
-                            imageUrl: data['imageUrl'],
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              width: 40,
-                              height: 40,
-                              color: Colors.grey[300],
-                              child: const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              width: 40,
-                              height: 40,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.image_not_supported, size: 20),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Icon(Icons.description, size: 20),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEFFDE),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF91C788), width: 1.5),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEFFDE),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                ),
+                child: Text(
+                  '${cluster.complaints.length} Complaint(s) here',
+                  style: const TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+              // List
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(10),
+                  itemCount: cluster.complaints.length,
+                  itemBuilder: (context, index) {
+                    var complaint = cluster.complaints[index];
+                    var data = complaint.data() as Map<String, dynamic>;
+                    final status = data['status'] ?? 'pending';
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => ComplaintDetailScreen(complaint: complaint),
+                        ));
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEFFDE),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF91C788), width: 1),
                         ),
-                  title: Text(
-                    data['complaint'] ?? 'No complaint text',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text('Status: ${data['status'] ?? 'pending'}'),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(data['status'] ?? 'pending'),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      (data['status'] ?? 'pending').toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ComplaintDetailScreen(complaint: complaint),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          leading: data['imageUrl'] != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: CachedNetworkImage(
+                                    imageUrl: data['imageUrl'],
+                                    width: 40, height: 40, fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(width: 40, height: 40, color: const Color(0xFF91C788)),
+                                    errorWidget: (_, __, ___) => Container(
+                                      width: 40, height: 40, color: const Color(0xFF91C788),
+                                      child: const Icon(Icons.image_not_supported, size: 18, color: Color(0xFF52734D))),
+                                  ),
+                                )
+                              : Container(
+                                  width: 40, height: 40,
+                                  decoration: BoxDecoration(color: const Color(0xFF91C788), borderRadius: BorderRadius.circular(6)),
+                                  child: const Icon(Icons.description, size: 20, color: Color(0xFF52734D)),
+                                ),
+                          title: Text(
+                            data['complaint'] ?? 'No complaint text',
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.w600, fontSize: 13),
+                          ),
+                          subtitle: Text('Status: $status',
+                            style: const TextStyle(color: Color(0xFF52734D), fontSize: 11)),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(status),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(status.toUpperCase(),
+                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
                       ),
                     );
                   },
                 ),
-              );
-            },
+              ),
+              // Footer
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEFFDE),
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
+                ),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFFEFFDE),
+                      backgroundColor: const Color(0xFF52734D),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                    ),
+                    child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
       ),
     );
   }
@@ -195,9 +209,9 @@ class _AdminMapViewState extends State<AdminMapView> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
-        return Colors.orange;
+        return const Color(0xFFE53935);
       case 'under_work':
-        return Colors.blue;
+        return const Color(0xFFFB8C00);
       case 'fixed':
         return Colors.green;
       default:
@@ -250,12 +264,25 @@ class _AdminMapViewState extends State<AdminMapView> {
                   children: [
                     // Legend
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildLegendItem('🔴 Pending', Colors.red),
-                          _buildLegendItem('🟠 Under Work', Colors.orange),
+                          Row(children: [
+                            const SizedBox(width: 44, height: 44, child: _PendingMarker()),
+                            const SizedBox(width: 8),
+                            const Text('Pending', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFE53935))),
+                          ]),
+                          Container(width: 1, height: 24, color: Colors.grey.shade300),
+                          Row(children: [
+                            const SizedBox(width: 44, height: 44, child: _UnderWorkMarker()),
+                            const SizedBox(width: 8),
+                            const Text('Under Work', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFFB8C00))),
+                          ]),
                         ],
                       ),
                     ),
@@ -281,30 +308,16 @@ class _AdminMapViewState extends State<AdminMapView> {
                           ),
                           MarkerLayer(
                             markers: clusters.map((cluster) {
+                              final status = _getClusterStatus(cluster.complaints);
                               return Marker(
                                 point: LatLng(cluster.latitude, cluster.longitude),
                                 width: 50,
                                 height: 50,
                                 child: GestureDetector(
                                   onTap: () => _showClusterDialog(cluster),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        _getClusterEmoji(cluster.complaints),
-                                        style: const TextStyle(fontSize: 32),
-                                      ),
-                                    ),
-                                  ),
+                                  child: status == 'pending'
+                                      ? const _PendingMarker()
+                                      : const _UnderWorkMarker(),
                                 ),
                               );
                             }).toList(),
@@ -317,13 +330,209 @@ class _AdminMapViewState extends State<AdminMapView> {
     );
   }
 
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 14)),
-      ],
+}
+
+// Pending marker — dot with triangle projecting outward + fill animation
+class _PendingMarker extends StatefulWidget {
+  const _PendingMarker();
+  @override
+  State<_PendingMarker> createState() => _PendingMarkerState();
+}
+
+class _PendingMarkerState extends State<_PendingMarker>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) => CustomPaint(
+        painter: _PendingPainter(_controller.value),
+      ),
     );
   }
+}
+
+class _PendingPainter extends CustomPainter {
+  final double progress;
+  _PendingPainter(this.progress);
+
+  static const _pi = 3.14159265358979;
+
+  double _cos(double x) {
+    x = x % (2 * _pi);
+    return 1 - (x * x) / 2 + (x * x * x * x) / 24;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height - 4;
+
+    // --- Solid triangle with fill animation ---
+    final fillLevel = 0.5 - 0.5 * _cos(progress * 2 * _pi);
+    final triH = cy - 10;
+    final triW = size.width * 0.65;
+    final top = cy - triH - 10;
+    final left = cx - triW / 2;
+    final right = cx + triW / 2;
+
+    final solidTri = Path()
+      ..moveTo(cx, top)
+      ..lineTo(right, cy - 12)
+      ..lineTo(left, cy - 12)
+      ..close();
+
+    canvas.save();
+    canvas.clipPath(solidTri);
+    final fillY = (cy - 12) - ((cy - 12) * 2 * fillLevel);
+    canvas.drawRect(
+      Rect.fromLTRB(0, fillY, size.width, cy),
+      Paint()..color = const Color(0xFFE53935),
+    );
+    canvas.restore();
+
+    canvas.drawPath(
+      solidTri,
+      Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: '!',
+        style: TextStyle(
+          color: fillLevel > 0.4 ? Colors.white : const Color(0xFFE53935),
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(cx - tp.width / 2, top + triH * 0.45));
+
+    // --- Pin dot ---
+    canvas.drawCircle(Offset(cx, cy), 5, Paint()..color = const Color(0xFFE53935));
+    canvas.drawCircle(Offset(cx, cy), 5,
+        Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5);
+  }
+
+  @override
+  bool shouldRepaint(_PendingPainter old) => old.progress != progress;
+}
+
+// Under Work marker — dot with circle projecting outward + spinning arc
+class _UnderWorkMarker extends StatefulWidget {
+  const _UnderWorkMarker();
+  @override
+  State<_UnderWorkMarker> createState() => _UnderWorkMarkerState();
+}
+
+class _UnderWorkMarkerState extends State<_UnderWorkMarker>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) => CustomPaint(
+        painter: _UnderWorkPainter(_controller.value),
+      ),
+    );
+  }
+}
+
+class _UnderWorkPainter extends CustomPainter {
+  final double progress;
+  _UnderWorkPainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height - 4;
+    final maxR = size.width / 3;
+    final circleCenter = Offset(cx, cy - maxR - 12);
+
+    // --- Solid circle ---
+    canvas.drawCircle(circleCenter, maxR, Paint()..color = const Color(0xFFFB8C00));
+
+    // --- Spinning grey arc - thicker, outside circle ---
+    canvas.drawArc(
+      Rect.fromCircle(center: circleCenter, radius: maxR + 5),
+      progress * 6.28318 * 2,
+      4.5,
+      false,
+      Paint()
+        ..color = const Color(0xFF424242)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // White border
+    canvas.drawCircle(circleCenter, maxR,
+        Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
+
+    // Grey wrench icon
+    final iconPainter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(Icons.build.codePoint),
+        style: TextStyle(
+          fontSize: maxR * 1.1,
+          fontFamily: Icons.build.fontFamily,
+          package: Icons.build.fontPackage,
+          color: const Color(0xFF757575),
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    iconPainter.paint(canvas, Offset(circleCenter.dx - iconPainter.width / 2, circleCenter.dy - iconPainter.height / 2));
+
+    // --- Pin dot ---
+    canvas.drawCircle(Offset(cx, cy), 5, Paint()..color = const Color(0xFFFB8C00));
+    canvas.drawCircle(Offset(cx, cy), 5,
+        Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5);
+  }
+
+  @override
+  bool shouldRepaint(_UnderWorkPainter old) => old.progress != progress;
 }
 
 class ComplaintCluster {

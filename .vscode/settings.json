@@ -22,5 +22,9 @@
     "http",
     "net"
   ],
-  "java.configuration.updateBuildConfiguration": "interactive"
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "code-runner.ignoreSelection": true,
+  "code-runner.executorMap": {
+    "dart": "flutter run"
+  }
 }
