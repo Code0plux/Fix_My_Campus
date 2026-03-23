@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../services/notification_service.dart';
+
 
 class ComplaintDetailScreen extends StatefulWidget {
   final DocumentSnapshot complaint;
@@ -38,31 +38,9 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
       
       setState(() => _currentStatus = newStatus);
 
-      // Send notification
-      if (newStatus == 'fixed') {
-        final notificationSent = await NotificationService.sendFixedNotification(widget.complaint.id);
-        if (notificationSent) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Status updated to FIXED and notification sent to user'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Status updated but notification could not be sent'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-      } else {
-        // Send status update notification for other statuses
-        await NotificationService.sendStatusUpdateNotification(widget.complaint.id, newStatus);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Status updated to $newStatus and notification sent')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Status updated to $newStatus')),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating status: $e')),
