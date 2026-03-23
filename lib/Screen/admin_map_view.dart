@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'complaint_detail_screen.dart';
+import 'fixed_complaints_history.dart';
 
 class AdminMapView extends StatefulWidget {
   const AdminMapView({super.key});
@@ -29,8 +30,8 @@ class _AdminMapViewState extends State<AdminMapView> {
           .collection('complaints')
           .where('latitude', isNotEqualTo: null)
           .where('longitude', isNotEqualTo: null)
+          .where('status', isNotEqualTo: 'fixed')
           .get();
-      
       setState(() {
         complaints = snapshot.docs;
         clusters = _createClusters(complaints);
@@ -58,7 +59,6 @@ class _AdminMapViewState extends State<AdminMapView> {
           break;
         }
       }
-      
       if (nearbyCluster != null) {
         nearbyCluster.complaints.add(complaint);
       } else {
@@ -69,7 +69,6 @@ class _AdminMapViewState extends State<AdminMapView> {
         ));
       }
     }
-    
     return clusters;
   }
 
@@ -77,32 +76,23 @@ class _AdminMapViewState extends State<AdminMapView> {
     return Distance().as(LengthUnit.Meter, LatLng(lat1, lng1), LatLng(lat2, lng2));
   }
 
-  Color _getClusterColor(List<DocumentSnapshot> complaints) {
+  String _getClusterEmoji(List<DocumentSnapshot> complaints) {
     int pendingCount = 0;
     int underWorkCount = 0;
-    int fixedCount = 0;
-    
+
     for (var complaint in complaints) {
       var data = complaint.data() as Map<String, dynamic>;
       String status = data['status'] ?? 'pending';
-      
-      switch (status) {
-        case 'pending':
-          pendingCount++;
-          break;
-        case 'under_work':
-          underWorkCount++;
-          break;
-        case 'fixed':
-          fixedCount++;
-          break;
+      if (status == 'pending') {
+        pendingCount++;
+      } else if (status == 'under_work') {
+        underWorkCount++;
       }
     }
-    
-    // Priority: pending > under_work > fixed
-    if (pendingCount > 0) return Colors.red;
-    if (underWorkCount > 0) return Colors.orange;
-    return Colors.green;
+
+    if (pendingCount > 0) return '🔴'; // Red circle for pending
+    if (underWorkCount > 0) return '🟠'; // Orange circle for under work
+    return '🟢'; // Green circle (shouldn't appear as fixed are filtered)
   }
 
   void _showClusterDialog(ComplaintCluster cluster) {
@@ -118,9 +108,9 @@ class _AdminMapViewState extends State<AdminMapView> {
             itemBuilder: (context, index) {
               var complaint = cluster.complaints[index];
               var data = complaint.data() as Map<String, dynamic>;
-              
+
               return Card(
-                margin: EdgeInsets.only(bottom: 8),
+                margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: data['imageUrl'] != null
                       ? ClipRRect(
@@ -134,7 +124,7 @@ class _AdminMapViewState extends State<AdminMapView> {
                               width: 40,
                               height: 40,
                               color: Colors.grey[300],
-                              child: SizedBox(
+                              child: const SizedBox(
                                 width: 16,
                                 height: 16,
                                 child: CircularProgressIndicator(strokeWidth: 2),
@@ -144,7 +134,7 @@ class _AdminMapViewState extends State<AdminMapView> {
                               width: 40,
                               height: 40,
                               color: Colors.grey[300],
-                              child: Icon(Icons.image_not_supported, size: 20),
+                              child: const Icon(Icons.image_not_supported, size: 20),
                             ),
                           ),
                         )
@@ -155,7 +145,7 @@ class _AdminMapViewState extends State<AdminMapView> {
                             color: Colors.grey[300],
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Icon(Icons.description, size: 20),
+                          child: const Icon(Icons.description, size: 20),
                         ),
                   title: Text(
                     data['complaint'] ?? 'No complaint text',
@@ -164,14 +154,14 @@ class _AdminMapViewState extends State<AdminMapView> {
                   ),
                   subtitle: Text('Status: ${data['status'] ?? 'pending'}'),
                   trailing: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: _getStatusColor(data['status'] ?? 'pending'),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       (data['status'] ?? 'pending').toUpperCase(),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -195,7 +185,7 @@ class _AdminMapViewState extends State<AdminMapView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
+            child: const Text('Close'),
           ),
         ],
       ),
@@ -219,11 +209,23 @@ class _AdminMapViewState extends State<AdminMapView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Complaints Map'),
-        backgroundColor: Color(0xFF91C788),
+        title: const Text('Complaints Map'),
+        backgroundColor: const Color(0xFF91C788),
         actions: [
-            IconButton(
-            icon: Icon(Icons.refresh),
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FixedComplaintsHistory(),
+                ),
+              );
+            },
+            tooltip: 'View Fixed Complaints History',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
             onPressed: () {
               setState(() => isLoading = true);
               _loadComplaints();
@@ -232,15 +234,15 @@ class _AdminMapViewState extends State<AdminMapView> {
         ],
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : complaints.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.location_off, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('No complaints with location found'),
+                      const SizedBox(height: 16),
+                      const Text('No active complaints found'),
                     ],
                   ),
                 )
@@ -248,13 +250,12 @@ class _AdminMapViewState extends State<AdminMapView> {
                   children: [
                     // Legend
                     Container(
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildLegendItem('Pending', Colors.red),
-                          _buildLegendItem('Under Work', Colors.orange),
-                          _buildLegendItem('Fixed', Colors.green),
+                          _buildLegendItem('🔴 Pending', Colors.red),
+                          _buildLegendItem('🟠 Under Work', Colors.orange),
                         ],
                       ),
                     ),
@@ -264,7 +265,7 @@ class _AdminMapViewState extends State<AdminMapView> {
                         options: MapOptions(
                           initialCenter: clusters.isNotEmpty
                               ? LatLng(clusters.first.latitude, clusters.first.longitude)
-                              : LatLng(13.0109, 80.2337),
+                              : const LatLng(13.0109, 80.2337),
                           initialZoom: 13.0,
                           maxZoom: 18,
                           minZoom: 10,
@@ -288,18 +289,19 @@ class _AdminMapViewState extends State<AdminMapView> {
                                   onTap: () => _showClusterDialog(cluster),
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: _getClusterColor(cluster.complaints),
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.3),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
                                     child: Center(
                                       child: Text(
-                                        '${cluster.complaints.length}',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
+                                        _getClusterEmoji(cluster.complaints),
+                                        style: const TextStyle(fontSize: 32),
                                       ),
                                     ),
                                   ),
@@ -318,16 +320,7 @@ class _AdminMapViewState extends State<AdminMapView> {
   Widget _buildLegendItem(String label, Color color) {
     return Row(
       children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 12)),
+        Text(label, style: const TextStyle(fontSize: 14)),
       ],
     );
   }
