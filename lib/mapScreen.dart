@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'Auth/auth_service.dart';
+import 'Screen/user_complaints_screen.dart';
 
 class MapScreen extends StatefulWidget {
   @override
@@ -37,6 +38,16 @@ class _MapScreenState extends State<MapScreen> {
     LatLng(13.008855634985396, 80.23058935243694),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
   bool _isInsideCampus(LatLng point) {
     int intersections = 0;
     final x = point.longitude;
@@ -53,42 +64,6 @@ class _MapScreenState extends State<MapScreen> {
     return intersections % 2 != 0;
   }
 
-  void _showComplaintDialog() {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) => BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: AlertDialog(
-          backgroundColor: const Color(0xFFFEFFDE),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Create Complaint',
-              style: TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.bold)),
-          content: const Text('Do you want to create a complaint for this location?',
-              style: TextStyle(color: Color(0xFF52734D))),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF52734D))),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF91C788),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/complaint', arguments: selectedLocation);
-              },
-              child: const Text('Create Complaint'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _logout() async {
     await _authService.logout();
     Navigator.pushReplacementNamed(context, '/login');
@@ -98,13 +73,21 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "Report Issue Location",
-          style: TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFFFEFFDE),
-        iconTheme: const IconThemeData(color: Color(0xFF52734D)),
+        title: const Text("Report Issue Location"),
+        backgroundColor: const Color(0xFF91C788),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.list),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const UserComplaintsScreen(),
+                ),
+              );
+            },
+            tooltip: 'My Complaints',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
@@ -114,73 +97,87 @@ class _MapScreenState extends State<MapScreen> {
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            color: Colors.black,
-            child: const Row(
+            padding: const EdgeInsets.all(8),
+            color: Colors.green.shade100,
+            child: Row(
               children: [
-                Icon(Icons.touch_app, color: Color(0xFF91C788)),
-                SizedBox(width: 8),
-                Text('Tap on the map to select a location within CEG campus',
-                    style: TextStyle(color: Color(0xFF91C788), fontWeight: FontWeight.w500)),
+                const Icon(Icons.info, color: Colors.green),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(selectedLocation != null
+                      ? 'Location selected. Ready to create complaint.'
+                      : 'Tap on map to select location'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedLocation != null
+                      ? () {
+                          Navigator.pushNamed(
+                            context,
+                            '/complaint',
+                            arguments: selectedLocation,
+                          );
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF91C788),
+                  ),
+                  child: const Text('Create Complaint',
+                      style: TextStyle(color: Colors.white)),
+                ),
               ],
             ),
           ),
           Expanded(
-            child: Stack(
-              children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: const LatLng(13.0109, 80.2337),
-                    initialZoom: 16,
-                    minZoom: 15,
-                    maxZoom: 18,
-                    cameraConstraint: CameraConstraint.containCenter(
-                      bounds: LatLngBounds(
-                        const LatLng(13.0060, 80.2300),
-                        const LatLng(13.0195, 80.2410),
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: const LatLng(13.0109, 80.2337),
+                initialZoom: 16,
+                maxZoom: 18,
+                minZoom: 10,
+                onTap: (tapPosition, point) {
+                  if (_isInsideCampus(point)) {
+                    setState(() {
+                      selectedLocation = point;
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select a location within CEG campus'),
+                        backgroundColor: Colors.red,
                       ),
+                    );
+                  }
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  userAgentPackageName: 'com.example.fix_my_campus',
+                  maxZoom: 18,
+                  minZoom: 1,
+                  retinaMode: false,
+                  tileProvider: NetworkTileProvider(),
+                ),
+                PolygonLayer(
+                  polygons: [
+                    Polygon(
+                      points: _campusBoundary,
+                      color: const Color(0xFF91C788).withOpacity(0.15),
+                      borderColor: const Color(0xFF91C788),
+                      borderStrokeWidth: 2,
                     ),
-                    onTap: (tapPosition, point) {
-                      if (_isInsideCampus(point)) {
-                        setState(() => selectedLocation = point);
-                        _showComplaintDialog();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please select a location within CEG campus'),
-                            backgroundColor: Color(0xFF52734D),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                      userAgentPackageName: 'com.example.fix_my_campus',
-                      maxZoom: 18,
-                    ),
-                    PolygonLayer(
-                      polygons: [
-                        Polygon(
-                          points: _campusBoundary,
-                          color: const Color(0xFF91C788).withOpacity(0.15),
-                          borderColor: const Color(0xFF52734D),
-                          borderStrokeWidth: 2,
-                        ),
-                      ],
-                    ),
-                    if (selectedLocation != null)
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: selectedLocation!,
-                            width: 80,
-                            height: 80,
-                            child: const Icon(Icons.location_pin, size: 40, color: Colors.red),
-                          ),
-                        ],
+                  ],
+                ),
+                if (selectedLocation != null)
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: selectedLocation!,
+                        width: 80,
+                        height: 80,
+                        child: const Icon(Icons.location_pin,
+                            size: 40, color: Colors.red),
                       ),
                   ],
                 ),
@@ -201,38 +198,4 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
-}
-
-class _OutsideBlurPainter extends CustomPainter {
-  final List<LatLng> boundary;
-  final MapController mapController;
-
-  _OutsideBlurPainter({required this.boundary, required this.mapController});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = ui.Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    final campusPath = ui.Path();
-    for (int i = 0; i < boundary.length; i++) {
-      final point = mapController.camera.latLngToScreenPoint(boundary[i]);
-      if (i == 0) {
-        campusPath.moveTo(point.x, point.y);
-      } else {
-        campusPath.lineTo(point.x, point.y);
-      }
-    }
-    campusPath.close();
-
-    final outsidePath = ui.Path.combine(ui.PathOperation.difference, path, campusPath);
-
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.55)
-      ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 6);
-
-    canvas.drawPath(outsidePath, paint);
-  }
-
-  @override
-  bool shouldRepaint(_OutsideBlurPainter oldDelegate) => true;
 }

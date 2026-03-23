@@ -6,12 +6,14 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
+  // Token storage keys
   static const String _tokenKey = 'auth_token';
   static const String _userIdKey = 'user_id';
   static const String _isAdminKey = 'is_admin';
   static const String _usernameKey = 'username';
   static const String _emailKey = 'email';
 
+  // Save user session
   Future<void> _saveUserSession(User user, bool isAdmin, String username) async {
     final prefs = await SharedPreferences.getInstance();
     final token = await user.getIdToken();
@@ -29,6 +31,7 @@ class AuthService {
     }
   }
   
+  // Get saved user session
   Future<Map<String, dynamic>?> getSavedUserSession() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
@@ -44,6 +47,7 @@ class AuthService {
     };
   }
   
+  // Check if user is logged in
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
@@ -52,6 +56,7 @@ class AuthService {
     return token != null && currentUser != null;
   }
   
+  // Clear user session
   Future<void> _clearUserSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
@@ -78,6 +83,7 @@ class AuthService {
       bool isAdmin = userDoc['isAdmin'] ?? false;
       String username = userDoc['username'] ?? '';
       
+      // Save user session
       await _saveUserSession(result.user!, isAdmin, username);
       
       return {
