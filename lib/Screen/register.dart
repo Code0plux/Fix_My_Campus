@@ -12,6 +12,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
@@ -20,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _usernameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -31,6 +33,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final result = await _authService.register(
         _usernameController.text.trim(),
         _emailController.text.trim(),
+        _phoneController.text.trim(),
         _passwordController.text,
       );
 
@@ -40,7 +43,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registration successful! Logging you in...')),
         );
-        // Auto-navigate to home since session is saved in register method
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -122,6 +124,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         }
                         if (!value.contains('@')) {
                           return 'Please enter a valid email';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        prefixIcon: const Icon(Icons.phone),
+                        hintText: '+91 XXXXXXXXXX',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter phone number';
+                        }
+                        if (value.length < 10) {
+                          return 'Please enter a valid phone number';
                         }
                         return null;
                       },

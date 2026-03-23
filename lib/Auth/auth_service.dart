@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fix_my_campus/services/notification_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -11,8 +12,9 @@ class AuthService {
   static const String _isAdminKey = 'is_admin';
   static const String _usernameKey = 'username';
   static const String _emailKey = 'email';
+  static const String _phoneKey = 'phone';
 
-  Future<void> _saveUserSession(User user, bool isAdmin, String username) async {
+  Future<void> _saveUserSession(User user, bool isAdmin, String username, String phone) async {
     final prefs = await SharedPreferences.getInstance();
     final token = await user.getIdToken();
     
@@ -22,6 +24,10 @@ class AuthService {
       await prefs.setBool(_isAdminKey, isAdmin);
       await prefs.setString(_usernameKey, username);
       await prefs.setString(_emailKey, user.email ?? '');
+      await prefs.setString(_phoneKey, phone);
+      
+      // Save FCM token for notifications
+      await NotificationService.saveFCMTokenForUser(user.uid);
       
       print('User session saved: ${user.email}, isAdmin: $isAdmin');
     } else {
@@ -41,6 +47,7 @@ class AuthService {
       'isAdmin': prefs.getBool(_isAdminKey) ?? false,
       'username': prefs.getString(_usernameKey),
       'email': prefs.getString(_emailKey),
+      'phone': prefs.getString(_phoneKey),
     };
   }
   
@@ -59,6 +66,7 @@ class AuthService {
     await prefs.remove(_isAdminKey);
     await prefs.remove(_usernameKey);
     await prefs.remove(_emailKey);
+    await prefs.remove(_phoneKey);
     
     print('User session cleared');
   }
@@ -77,8 +85,9 @@ class AuthService {
       
       bool isAdmin = userDoc['isAdmin'] ?? false;
       String username = userDoc['username'] ?? '';
+      String phone = userDoc['phone'] ?? '';
       
-      await _saveUserSession(result.user!, isAdmin, username);
+      await _saveUserSession(result.user!, isAdmin, username, phone);
       
       return {
         'success': true,
@@ -91,7 +100,7 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>> register(
-      String username, String email, String password) async {
+      String username, String email, String phone, String password) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -101,12 +110,13 @@ class AuthService {
       await _firestore.collection('users').doc(result.user!.uid).set({
         'username': username,
         'email': email,
+        'phone': phone,
         'isAdmin': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
       
       // Save user session after registration
-      await _saveUserSession(result.user!, false, username);
+      await _saveUserSession(result.user!, false, username, phone);
 
       return {'success': true};
     } catch (e) {

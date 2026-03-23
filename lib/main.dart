@@ -3,8 +3,10 @@ import 'package:fix_my_campus/Screen/register.dart';
 import 'package:fix_my_campus/Screen/admin_dashboard.dart';
 import 'package:fix_my_campus/Screen/complaint_register.dart';
 import 'package:fix_my_campus/Screen/splash_screen.dart';
+import 'package:fix_my_campus/Screen/debug_screen.dart';
 import 'package:fix_my_campus/mapScreen.dart';
 import 'package:fix_my_campus/supabase_config.dart';
+import 'package:fix_my_campus/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 
@@ -16,6 +18,10 @@ void main() async {
     
     await SupabaseConfig.initialize();
     print('Supabase initialized successfully');
+    
+    // Initialize notifications
+    await NotificationService.initialize();
+    print('Notifications initialized successfully');
   } catch (e) {
     print('Initialization error: $e');
   }
@@ -40,6 +46,7 @@ class MyApp extends StatelessWidget {
         '/admin': (context) => const AdminDashboard(),
         '/home': (context) =>  MapScreen(),
         '/complaint': (context) => const ComplaintRegister(),
+        '/debug': (context) => const DebugScreen(),
       },
       initialRoute: '/',
     );
