@@ -183,12 +183,15 @@ class _MapScreenState extends State<MapScreen> {
                 ),
                 // Blur overlay outside campus boundary
                 IgnorePointer(
-                  child: CustomPaint(
-                    painter: _OutsideBlurPainter(
-                      boundary: _campusBoundary,
-                      mapController: _mapController,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => CustomPaint(
+                      painter: _OutsideBlurPainter(
+                        boundary: _campusBoundary,
+                        mapController: _mapController,
+                        size: Size(constraints.maxWidth, constraints.maxHeight),
+                      ),
+                      size: Size(constraints.maxWidth, constraints.maxHeight),
                     ),
-                    size: Size.infinite,
                   ),
                 ),
               ],
@@ -198,4 +201,41 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
+}
+
+class _OutsideBlurPainter extends CustomPainter {
+  final List<LatLng> boundary;
+  final MapController mapController;
+  final Size size;
+
+  _OutsideBlurPainter({
+    required this.boundary,
+    required this.mapController,
+    required this.size,
+  });
+
+  @override
+  void paint(Canvas canvas, Size canvasSize) {
+    final screenPoints = boundary.map((latlng) {
+      final point = mapController.camera.latLngToScreenPoint(latlng);
+      return Offset(point.x, point.y);
+    }).toList();
+
+    final campusPath = ui.Path()..addPolygon(screenPoints, true);
+    final fullRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final fullPath = ui.Path()..addRect(fullRect);
+    final outsidePath = ui.Path.combine(ui.PathOperation.difference, fullPath, campusPath);
+
+    canvas.saveLayer(fullRect, Paint());
+    canvas.drawPath(
+      outsidePath,
+      Paint()..color = Colors.black.withOpacity(0.18),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_OutsideBlurPainter old) =>
+      old.mapController.camera.zoom != mapController.camera.zoom ||
+      old.mapController.camera.center != mapController.camera.center;
 }
