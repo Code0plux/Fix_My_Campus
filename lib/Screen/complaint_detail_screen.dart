@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/notification_service.dart';
 
 class ComplaintDetailScreen extends StatefulWidget {
   final DocumentSnapshot complaint;
@@ -36,10 +37,32 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
       });
       
       setState(() => _currentStatus = newStatus);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status updated to $newStatus')),
-      );
+
+      // Send notification
+      if (newStatus == 'fixed') {
+        final notificationSent = await NotificationService.sendFixedNotification(widget.complaint.id);
+        if (notificationSent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Status updated to FIXED and notification sent to user'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Status updated but notification could not be sent'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        // Send status update notification for other statuses
+        await NotificationService.sendStatusUpdateNotification(widget.complaint.id, newStatus);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Status updated to $newStatus and notification sent')),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating status: $e')),
@@ -68,30 +91,30 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text('Complaint Details'),
-        backgroundColor: Color(0xFF91C788),
+        title: const Text('Complaint Details'),
+        backgroundColor: const Color(0xFF91C788),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Status Card
             Card(
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Text('Status: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Status: ', style: TextStyle(fontWeight: FontWeight.bold)),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: _getStatusColor(_currentStatus),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         _currentStatus.toUpperCase(),
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -99,43 +122,46 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
               ),
             ),
             
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // Complaint Details
             Card(
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Complaint Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 8),
+                    const Text('Complaint Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
                     Text(data['complaint'] ?? 'No complaint text'),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Text('User Email: ${data['userEmail'] ?? 'Unknown'}'),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     if (data['latitude'] != null && data['longitude'] != null)
                       Text('Location: ${data['latitude'].toStringAsFixed(4)}, ${data['longitude'].toStringAsFixed(4)}'),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     if (data['createdAt'] != null)
                       Text('Submitted: ${(data['createdAt'] as Timestamp).toDate().toString().split('.')[0]}'),
+                    const SizedBox(height: 8),
+                    if (data['priority'] != null)
+                      Text('Priority: ${data['priority'].toString().toUpperCase()}'),
                   ],
                 ),
               ),
             ),
             
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // Location Map Section
             if (data['latitude'] != null && data['longitude'] != null) ...[
               Card(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Complaint Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8),
+                      const Text('Complaint Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
                       Container(
                         height: 200,
                         child: FlutterMap(
@@ -146,7 +172,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                           children: [
                             TileLayer(
                               urlTemplate: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
-                              subdomains: ['0', '1', '2', '3'],
+                              subdomains: const ['0', '1', '2', '3'],
                               userAgentPackageName: 'com.example.fix_my_campus',
                             ),
                             MarkerLayer(
@@ -155,7 +181,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                                   point: LatLng(data['latitude'], data['longitude']),
                                   width: 40,
                                   height: 40,
-                                  child: Icon(
+                                  child: const Icon(
                                     Icons.location_pin,
                                     color: Colors.red,
                                     size: 40,
@@ -166,25 +192,25 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                           ],
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text('Coordinates: ${data['latitude'].toStringAsFixed(6)}, ${data['longitude'].toStringAsFixed(6)}'),
                     ],
                   ),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
             ],
             
             // Image Section
             if (data['imageUrl'] != null) ...[
               Card(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Complaint Image', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8),
+                      const Text('Complaint Image', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: CachedNetworkImage(
@@ -193,7 +219,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
                             height: 200,
-                            child: Center(
+                            child: const Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -212,8 +238,8 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(Icons.error, size: 48, color: Colors.grey[600]),
-                                  SizedBox(height: 8),
-                                  Text('Failed to load image'),
+                                  const SizedBox(height: 8),
+                                  const Text('Failed to load image'),
                                 ],
                               ),
                             ),
@@ -224,18 +250,18 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
             ],
             
             // Action Buttons
             Card(
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Update Status', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 16),
+                    const Text('Update Status', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -248,11 +274,11 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                               foregroundColor: Colors.white,
                             ),
                             child: _isUpdating 
-                                ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                : Text('Mark Under Work'),
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Text('Mark Under Work'),
                           ),
                         ),
-                        SizedBox(width: 16),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
                             onPressed: _isUpdating || _currentStatus == 'fixed' 
@@ -263,8 +289,8 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                               foregroundColor: Colors.white,
                             ),
                             child: _isUpdating 
-                                ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                : Text('Mark Fixed'),
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Text('Mark Fixed'),
                           ),
                         ),
                       ],
