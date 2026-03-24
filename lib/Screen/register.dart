@@ -8,7 +8,8 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -16,8 +17,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
 
+  late AnimationController _orbitController;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _orbitController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 1.0, end: 0.6).animate(_pulseController);
+  }
+
   @override
   void dispose() {
+    _orbitController.dispose();
+    _pulseController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -49,13 +70,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: const Color(0xFF52734D)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF91C788)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF91C788)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF52734D), width: 2),
+      ),
+      filled: true,
+      fillColor: const Color(0xFFFEFFDE).withOpacity(0.3),
+      labelStyle: const TextStyle(color: Color(0xFF52734D)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Register'),
-        backgroundColor: const Color(0xFF91C788),
-      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -66,107 +105,104 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              padding: const EdgeInsets.all(32.0),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(24),
+            padding: const EdgeInsets.all(24),
+            child: AnimatedBuilder(
+              animation: _orbitController,
+              builder: (context, child) => CustomPaint(
+                painter: OrbitingBorderPainter(
+                  animation: _orbitController,
+                  color: const Color(0xFF91C788),
+                ),
+                child: child,
               ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Create Account',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF52734D),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    TextFormField(
-                      controller: _usernameController,
-                      decoration: InputDecoration(
-                        labelText: 'Username',
-                        prefixIcon: const Icon(Icons.person),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Create Account',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF52734D),
                         ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter username';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _emailController,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: const Icon(Icons.email),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      const SizedBox(height: 32),
+                      TextFormField(
+                        controller: _usernameController,
+                        decoration: _fieldDecoration('Username', Icons.person),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Please enter username' : null,
                       ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter email';
-                        }
-                        if (!value.contains('@')) {
-                          return 'Please enter a valid email';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _passwordController,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: _fieldDecoration('Email', Icons.email),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Please enter email';
+                          if (!v.contains('@')) return 'Please enter a valid email';
+                          return null;
+                        },
                       ),
-                      obscureText: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter password';
-                        }
-                        if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF91C788),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _passwordController,
+                        decoration: _fieldDecoration('Password', Icons.lock),
+                        obscureText: true,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Please enter password';
+                          if (v.length < 6) return 'Password must be at least 6 characters';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 32),
+                      AnimatedBuilder(
+                        animation: _pulseAnim,
+                        builder: (_, child) => Opacity(
+                          opacity: _isLoading ? _pulseAnim.value : 1.0,
+                          child: child,
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF91C788),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 3,
+                            ),
+                            onPressed: _isLoading ? null : _handleRegister,
+                            child: _isLoading
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : const Text(
+                                    'Register',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
                           ),
                         ),
-                        onPressed: _isLoading ? null : _handleRegister,
-                        child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                                'Register',
-                                style: TextStyle(fontSize: 18, color: Colors.white),
-                              ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          'Already have an account? Login',
+                          style: TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -175,4 +211,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+}
+
+class OrbitingBorderPainter extends CustomPainter {
+  final Animation<double> animation;
+  final Color color;
+
+  OrbitingBorderPainter({required this.animation, required this.color})
+      : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(24));
+    final path = Path()..addRRect(rrect);
+    final pathMetrics = path.computeMetrics().first;
+    final totalLength = pathMetrics.length;
+    final segmentLength = totalLength * 0.1;
+    final startDistance = totalLength * animation.value;
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+
+    final segment = pathMetrics.extractPath(
+      startDistance,
+      startDistance + segmentLength > totalLength
+          ? totalLength
+          : startDistance + segmentLength,
+    );
+    canvas.drawPath(segment, paint);
+
+    if (startDistance + segmentLength > totalLength) {
+      final wrapSegment = pathMetrics.extractPath(
+        0,
+        (startDistance + segmentLength) - totalLength,
+      );
+      canvas.drawPath(wrapSegment, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(OrbitingBorderPainter old) => true;
 }

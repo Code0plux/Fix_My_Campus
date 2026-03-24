@@ -8,59 +8,70 @@ class FixedComplaintsHistory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFEFFDE),
       appBar: AppBar(
-        title: const Text('Fixed Complaints History'),
+        title: const Text('Fixed Complaints History',
+            style: TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF91C788),
+        iconTheme: const IconThemeData(color: Color(0xFF52734D)),
+        elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('complaints')
             .where('status', isEqualTo: 'fixed')
-            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF52734D)));
           }
-
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Error: ${snapshot.error}'),
-            );
+            return Center(child: Text('Error: ${snapshot.error}',
+                style: const TextStyle(color: Color(0xFF52734D))));
           }
-
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle, size: 64, color: Colors.grey[400]),
+                  Icon(Icons.check_circle_outline, size: 64, color: const Color(0xFF91C788)),
                   const SizedBox(height: 16),
-                  Text(
-                    'No fixed complaints yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                  ),
+                  const Text('No fixed complaints yet',
+                      style: TextStyle(fontSize: 16, color: Color(0xFF52734D))),
                 ],
               ),
             );
           }
 
+          final docs = snapshot.data!.docs;
+          docs.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aTime = aData['createdAt'] as Timestamp?;
+            final bTime = bData['createdAt'] as Timestamp?;
+            if (aTime == null && bTime == null) return 0;
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime);
+          });
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: docs.length,
             itemBuilder: (context, index) {
-              var complaint = snapshot.data!.docs[index];
-              var data = complaint.data() as Map<String, dynamic>;
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                elevation: 2,
+              final data = docs[index].data() as Map<String, dynamic>;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDFFBC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF91C788), width: 1),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header with status
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -71,34 +82,25 @@ class FixedComplaintsHistory extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: 15,
+                                color: Color(0xFF52734D),
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.green,
-                              borderRadius: BorderRadius.circular(16),
+                              color: const Color(0xFF52734D),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
-                              'FIXED',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: const Text('FIXED',
+                                style: TextStyle(color: Color(0xFFFEFFDE), fontSize: 11, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-
-                      // Image if available
-                      if (data['imageUrl'] != null)
+                      if (data['imageUrl'] != null) ...[
+                        const SizedBox(height: 10),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: CachedNetworkImage(
@@ -106,90 +108,27 @@ class FixedComplaintsHistory extends StatelessWidget {
                             height: 150,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              height: 150,
-                              color: Colors.grey[300],
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              height: 150,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.image_not_supported),
-                            ),
-                          ),
-                        ),
-                      if (data['imageUrl'] != null) const SizedBox(height: 12),
-
-                      // User info
-                      Row(
-                        children: [
-                          Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              data['userEmail'] ?? 'Unknown user',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Location
-                      Row(
-                        children: [
-                          Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              data['latitude'] != null && data['longitude'] != null
-                                  ? '${data['latitude']?.toStringAsFixed(4)}, ${data['longitude']?.toStringAsFixed(4)}'
-                                  : 'Location not available',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Submitted date
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text(
-                            data['createdAt'] != null
-                                ? 'Submitted: ${(data['createdAt'] as Timestamp).toDate().toString().split(' ')[0]}'
-                                : 'Date not available',
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-
-                      // Priority badge
-                      if (data['priority'] != null) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getPriorityColor(data['priority']),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Priority: ${data['priority'].toString().toUpperCase()}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            placeholder: (_, __) => Container(
+                                height: 150, color: const Color(0xFF91C788),
+                                child: const Center(child: CircularProgressIndicator(color: Color(0xFF52734D)))),
+                            errorWidget: (_, __, ___) => Container(
+                                height: 150, color: const Color(0xFF91C788),
+                                child: const Icon(Icons.image_not_supported, color: Color(0xFF52734D))),
                           ),
                         ),
                       ],
+                      const SizedBox(height: 10),
+                      _infoRow(Icons.person, data['userEmail'] ?? 'Unknown user'),
+                      const SizedBox(height: 4),
+                      _infoRow(Icons.location_on,
+                        data['latitude'] != null && data['longitude'] != null
+                            ? '${(data['latitude'] as double).toStringAsFixed(4)}, ${(data['longitude'] as double).toStringAsFixed(4)}'
+                            : 'Location not available'),
+                      const SizedBox(height: 4),
+                      _infoRow(Icons.calendar_today,
+                        data['createdAt'] != null
+                            ? 'Submitted: ${(data['createdAt'] as Timestamp).toDate().toString().split(' ')[0]}'
+                            : 'Date not available'),
                     ],
                   ),
                 ),
@@ -201,16 +140,11 @@ class FixedComplaintsHistory extends StatelessWidget {
     );
   }
 
-  Color _getPriorityColor(String priority) {
-    switch (priority) {
-      case 'high':
-        return Colors.red;
-      case 'medium':
-        return Colors.orange;
-      case 'low':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
+  Widget _infoRow(IconData icon, String text) => Row(
+    children: [
+      Icon(icon, size: 14, color: const Color(0xFF52734D)),
+      const SizedBox(width: 4),
+      Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF52734D)))),
+    ],
+  );
 }
