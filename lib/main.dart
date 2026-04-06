@@ -4,8 +4,11 @@ import 'package:fix_my_campus/Screen/admin_dashboard.dart';
 import 'package:fix_my_campus/Screen/complaint_register.dart';
 import 'package:fix_my_campus/Screen/splash_screen.dart';
 import 'package:fix_my_campus/Screen/debug_screen.dart';
+import 'package:fix_my_campus/Screen/notifications_screen.dart';
 import 'package:fix_my_campus/mapScreen.dart';
 import 'package:fix_my_campus/supabase_config.dart';
+import 'package:fix_my_campus/services/notification_service.dart';
+import 'package:fix_my_campus/core/constants/app_colors.dart';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,6 +22,8 @@ void main() async {
     await SupabaseConfig.initialize();
     print('Supabase initialized successfully');
     
+    await NotificationService().initialize();
+    print('Notification service initialized successfully');
 
   } catch (e) {
     print('Initialization error: $e');
@@ -35,7 +40,21 @@ class MyApp extends StatelessWidget {
       title: 'Fix My Campus',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.white,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.white,
+          ),
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.white,
+        ),
       ),
       routes: {
         '/': (context) => const SplashScreen(),
@@ -45,6 +64,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) =>  MapScreen(),
         '/complaint': (context) => const ComplaintRegister(),
         '/debug': (context) => const DebugScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
       },
       initialRoute: '/',
     );

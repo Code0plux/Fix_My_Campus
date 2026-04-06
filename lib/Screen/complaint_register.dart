@@ -5,13 +5,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:fix_my_campus/supabase_config.dart';
 import 'package:image/image.dart' as img;
+import 'package:http/http.dart' as http;
+import '../core/constants/app_colors.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 
-const _bg = Color(0xFFFEFFDE);
-const _dark = Color(0xFF52734D);
-const _mid = Color(0xFF91C788);
-const _light = Color(0xFFDDFFBC);
+const _bg = AppColors.background;
+const _dark = AppColors.dark;
+const _mid = AppColors.primary;
+const _light = AppColors.light;
+
+// ─── Store your key securely — never commit it to version control.
+// Ideally proxy this call through a Firebase Cloud Function instead.
+const _anthropicApiKey = 'YOUR_ANTHROPIC_API_KEY';
 
 class ComplaintRegister extends StatefulWidget {
   const ComplaintRegister({super.key});
@@ -48,23 +55,100 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
     super.dispose();
   }
 
-  String _detectPriority(String complaint) {
+  // ─── AI-powered priority detection ──────────────────────────────────────────
+
+  /// Calls Claude to classify the complaint. Returns 'high', 'medium', or 'low'.
+  /// Falls back to regex silently if the API call fails, so submission is never blocked.
+  Future<String> _detectPriority(String complaint) async {
+    const prompt = '''
+You are a campus facilities complaint triage system. Classify the priority of the complaint below.
+
+Respond ONLY with a JSON object — no markdown, no preamble, no explanation. Format:
+{"priority": "high"|"medium"|"low", "confidence": 0.0-1.0, "reason": "one sentence"}
+
+Priority definitions:
+- high: immediate safety risk — fire, smoke, electrical fault, gas leak, flooding near electrics, structural collapse, injury hazard, blocked emergency exit, toxic/chemical exposure
+- medium: significant disruption or risk of worsening — broken fixtures, water leak (no electrical risk), HVAC failure, broken locks or doors, persistent maintenance issues, malfunctioning lights
+- low: cosmetic, minor, or quality-of-life — peeling paint, dirty areas, aesthetic damage, minor requests, suggestions
+
+Complaint: ''';
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://api.anthropic.com/v1/messages'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': _anthropicApiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: jsonEncode({
+          'model': 'claude-sonnet-4-20250514',
+          'max_tokens': 150,
+          'messages': [
+            {
+              'role': 'user',
+              'content': '$prompt"${complaint.replaceAll('"', '\\"')}"',
+            }
+          ],
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final text = (data['content'] as List)
+            .where((b) => b['type'] == 'text')
+            .map((b) => b['text'] as String)
+            .join();
+
+        // Strip accidental markdown fences just in case
+        final clean = text.replaceAll(RegExp(r'```[a-z]*\n?|```'), '').trim();
+        final parsed = jsonDecode(clean) as Map<String, dynamic>;
+        final priority = parsed['priority'] as String;
+
+        if (['high', 'medium', 'low'].contains(priority)) {
+          debugPrint(
+            'AI priority: $priority '
+            '(confidence: ${parsed['confidence']}, reason: ${parsed['reason']})',
+          );
+          return priority;
+        }
+      } else {
+        debugPrint('Anthropic API error ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('AI priority detection failed: $e — using fallback');
+    }
+
+    return _detectPriorityFallback(complaint);
+  }
+
+  /// Regex fallback — only used when the API call fails or times out.
+  String _detectPriorityFallback(String complaint) {
     final text = complaint.toLowerCase();
-    final high = [
-      'broken', 'damaged', 'dangerous', 'safety', 'injury', 'accident',
-      'fire', 'electrical', 'gas leak', 'water leak', 'flooding', 'collapse',
-      'urgent', 'emergency', 'critical', 'severe', 'serious', 'hazard',
-      'blocked', 'stuck', 'trapped', 'broken glass', 'sharp', 'bleeding'
+
+    final highPatterns = [
+      RegExp(r'\b(smoke|fire|burning|flame|electrical|electric|shock|electrocution)\b'),
+      RegExp(r'\b(gas|leak|leaking|fume|toxic|poison)\b'),
+      RegExp(r'\b(water|flood|flooding|leak|leaking)\b.*\b(electrical|electric|power|box)\b'),
+      RegExp(r'\b(broken|damaged|sharp|glass|bleeding|injury|accident|hurt)\b'),
+      RegExp(r'\b(dangerous|hazard|unsafe|risk|emergency|urgent|critical|severe)\b'),
+      RegExp(r'\b(collapse|falling|fallen|blocked|stuck|trapped)\b'),
     ];
-    final medium = [
-      'broken light', 'broken door', 'broken window', 'crack', 'hole',
-      'dirty', 'messy', 'stain', 'paint', 'repair', 'fix', 'maintenance',
-      'issue', 'problem', 'not working', 'malfunction', 'faulty'
+
+    final mediumPatterns = [
+      RegExp(r'\b(broken|damaged)\b.*\b(light|door|window|wall|floor|ceiling)\b'),
+      RegExp(r'\b(crack|hole|dent|scratch|stain|dirty|messy)\b'),
+      RegExp(r'\b(not working|malfunction|faulty|broken|issue|problem)\b'),
+      RegExp(r'\b(paint|repair|fix|maintenance|cleaning)\b'),
+      RegExp(r'\b(water|leak)\b(?!.*\b(electrical|electric|power)\b)'),
     ];
-    for (var k in high) if (text.contains(k)) return 'high';
-    for (var k in medium) if (text.contains(k)) return 'medium';
+
+    for (final p in highPatterns) if (p.hasMatch(text)) return 'high';
+    for (final p in mediumPatterns) if (p.hasMatch(text)) return 'medium';
     return 'low';
   }
+
+  // ─── Media picker ────────────────────────────────────────────────────────────
 
   Future<void> _showMediaPicker() async {
     showModalBottomSheet(
@@ -80,7 +164,8 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: _mid,
@@ -126,10 +211,14 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
     );
   }
 
+  // ─── File handling ───────────────────────────────────────────────────────────
+
   bool _isVideo(String path) {
     final ext = path.toLowerCase();
-    return ext.endsWith('.mp4') || ext.endsWith('.mov') ||
-        ext.endsWith('.avi') || ext.endsWith('.mkv');
+    return ext.endsWith('.mp4') ||
+        ext.endsWith('.mov') ||
+        ext.endsWith('.avi') ||
+        ext.endsWith('.mkv');
   }
 
   Future<Uint8List> _compressImage(File imageFile) async {
@@ -152,10 +241,14 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
       await SupabaseConfig.client.storage.from('fix_my_campus').uploadBinary(fileName, bytes);
       return SupabaseConfig.client.storage.from('fix_my_campus').getPublicUrl(fileName);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      }
       return null;
     }
   }
+
+  // ─── Submit ──────────────────────────────────────────────────────────────────
 
   Future<void> _submitComplaint() async {
     if (_complaintController.text.trim().isEmpty) {
@@ -168,12 +261,17 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
     try {
       final user = FirebaseAuth.instance.currentUser;
       final location = ModalRoute.of(context)?.settings.arguments as LatLng?;
-      final priority = _detectPriority(_complaintController.text);
+
+      // AI classification runs concurrently with nothing else here —
+      // keeping it sequential so priority is ready before Firestore write.
+      final priority = await _detectPriority(_complaintController.text);
+
       final mediaUrls = <String>[];
       for (final f in _mediaFiles) {
         final url = await _uploadFile(f);
         if (url != null) mediaUrls.add(url);
       }
+
       await _firestore.collection('complaints').add({
         'userId': user?.uid,
         'userEmail': user?.email,
@@ -186,16 +284,23 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
         'priority': priority,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Submitted! Priority: ${priority.toUpperCase()}')),
-      );
-      Navigator.pop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Submitted! Priority: ${priority.toUpperCase()}')),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  // ─── UI ──────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +308,8 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: _dark,
-        title: const Text('Register Complaint', style: TextStyle(color: _bg, fontWeight: FontWeight.w600)),
+        title: const Text('Register Complaint',
+            style: TextStyle(color: _bg, fontWeight: FontWeight.w600)),
         iconTheme: const IconThemeData(color: _bg),
         elevation: 0,
       ),
@@ -212,7 +318,6 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Description card
             _sectionLabel('Complaint Details'),
             const SizedBox(height: 8),
             Container(
@@ -220,7 +325,12 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: _mid.withOpacity(0.5)),
-                boxShadow: [BoxShadow(color: _mid.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 3))],
+                boxShadow: [
+                  BoxShadow(
+                      color: _mid.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3))
+                ],
               ),
               child: TextField(
                 controller: _complaintController,
@@ -235,8 +345,6 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
               ),
             ),
             const SizedBox(height: 10),
-
-            // Auto priority hint
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -257,8 +365,6 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
               ),
             ),
             const SizedBox(height: 20),
-
-            // Media section
             _sectionLabel('Attachments'),
             const SizedBox(height: 8),
             GestureDetector(
@@ -270,7 +376,12 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: _mid, style: BorderStyle.solid),
-                  boxShadow: [BoxShadow(color: _mid.withOpacity(0.1), blurRadius: 6, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: _mid.withOpacity(0.1),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
                 child: Column(
                   children: [
@@ -282,7 +393,6 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
                 ),
               ),
             ),
-
             if (_mediaFiles.isNotEmpty) ...[
               const SizedBox(height: 12),
               GridView.builder(
@@ -305,17 +415,20 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
                         child: isVid
                             ? Container(
                                 color: _dark,
-                                child: const Icon(Icons.play_circle_fill, color: Colors.white, size: 36),
+                                child: const Icon(Icons.play_circle_fill,
+                                    color: Colors.white, size: 36),
                               )
                             : Image.file(File(file.path), fit: BoxFit.cover),
                       ),
                       Positioned(
-                        top: 4, right: 4,
+                        top: 4,
+                        right: 4,
                         child: GestureDetector(
                           onTap: () => setState(() => _mediaFiles.removeAt(i)),
                           child: Container(
                             padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                            decoration: const BoxDecoration(
+                                color: Colors.red, shape: BoxShape.circle),
                             child: const Icon(Icons.close, color: Colors.white, size: 14),
                           ),
                         ),
@@ -325,10 +438,7 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
                 },
               ),
             ],
-
             const SizedBox(height: 28),
-
-            // Submit button
             AnimatedBuilder(
               animation: _pulseAnim,
               builder: (_, child) => Opacity(
@@ -345,11 +455,13 @@ class _ComplaintRegisterState extends State<ComplaintRegister>
                     foregroundColor: _bg,
                     elevation: 4,
                     shadowColor: _dark.withOpacity(0.4),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape:
+                        RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          width: 22, height: 22,
+                          width: 22,
+                          height: 22,
                           child: CircularProgressIndicator(color: _bg, strokeWidth: 2.5),
                         )
                       : const Text('Submit Complaint',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../core/constants/app_colors.dart';
 
 class FixedComplaintsHistory extends StatelessWidget {
   const FixedComplaintsHistory({super.key});
@@ -8,12 +9,12 @@ class FixedComplaintsHistory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFEFFDE),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Fixed Complaints History',
-            style: TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF91C788),
-        iconTheme: const IconThemeData(color: Color(0xFF52734D)),
+            style: TextStyle(color: AppColors.background, fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: AppColors.background),
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -23,21 +24,21 @@ class FixedComplaintsHistory extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF52734D)));
+            return const Center(child: CircularProgressIndicator(color: AppColors.dark));
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}',
-                style: const TextStyle(color: Color(0xFF52734D))));
+                style: const TextStyle(color: AppColors.dark)));
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle_outline, size: 64, color: const Color(0xFF91C788)),
+                  Icon(Icons.check_circle_outline, size: 64, color: AppColors.primary),
                   const SizedBox(height: 16),
                   const Text('No fixed complaints yet',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF52734D))),
+                      style: TextStyle(fontSize: 16, color: AppColors.dark)),
                 ],
               ),
             );
@@ -63,9 +64,9 @@ class FixedComplaintsHistory extends StatelessWidget {
               return Container(
                 margin: const EdgeInsets.only(bottom: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDDFFBC),
+                  color: AppColors.light,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF91C788), width: 1),
+                  border: Border.all(color: AppColors.primary, width: 1),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -83,7 +84,7 @@ class FixedComplaintsHistory extends StatelessWidget {
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                                color: Color(0xFF52734D),
+                                color: AppColors.dark,
                               ),
                             ),
                           ),
@@ -91,11 +92,11 @@ class FixedComplaintsHistory extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF52734D),
+                              color: AppColors.dark,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Text('FIXED',
-                                style: TextStyle(color: Color(0xFFFEFFDE), fontSize: 11, fontWeight: FontWeight.bold)),
+                                style: TextStyle(color: AppColors.background, fontSize: 11, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -109,11 +110,11 @@ class FixedComplaintsHistory extends StatelessWidget {
                             width: double.infinity,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(
-                                height: 150, color: const Color(0xFF91C788),
-                                child: const Center(child: CircularProgressIndicator(color: Color(0xFF52734D)))),
+                                height: 150, color: AppColors.primary,
+                                child: const Center(child: CircularProgressIndicator(color: AppColors.dark))),
                             errorWidget: (_, __, ___) => Container(
-                                height: 150, color: const Color(0xFF91C788),
-                                child: const Icon(Icons.image_not_supported, color: Color(0xFF52734D))),
+                                height: 150, color: AppColors.primary,
+                                child: const Icon(Icons.image_not_supported, color: AppColors.dark)),
                           ),
                         ),
                       ],
@@ -142,9 +143,9 @@ class FixedComplaintsHistory extends StatelessWidget {
 
   Widget _infoRow(IconData icon, String text) => Row(
     children: [
-      Icon(icon, size: 14, color: const Color(0xFF52734D)),
+      Icon(icon, size: 14, color: AppColors.dark),
       const SizedBox(width: 4),
-      Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF52734D)))),
+      Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: AppColors.dark))),
     ],
   );
 }

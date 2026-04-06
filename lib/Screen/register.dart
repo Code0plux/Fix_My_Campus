@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Auth/auth_service.dart';
+import '../core/constants/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -73,22 +74,22 @@ class _RegisterScreenState extends State<RegisterScreen>
   InputDecoration _fieldDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: const Color(0xFF52734D)),
+      prefixIcon: Icon(icon, color: AppColors.dark),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF91C788)),
+        borderSide: const BorderSide(color: AppColors.primary),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF91C788)),
+        borderSide: const BorderSide(color: AppColors.primary),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF52734D), width: 2),
+        borderSide: const BorderSide(color: AppColors.dark, width: 2),
       ),
       filled: true,
-      fillColor: const Color(0xFFFEFFDE).withOpacity(0.3),
-      labelStyle: const TextStyle(color: Color(0xFF52734D)),
+      fillColor: AppColors.background.withOpacity(0.3),
+      labelStyle: const TextStyle(color: AppColors.dark),
     );
   }
 
@@ -100,7 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFFEFFDE), Color(0xFFDDFFBC)],
+            colors: [AppColors.background, AppColors.light],
           ),
         ),
         child: Center(
@@ -111,7 +112,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               builder: (context, child) => CustomPaint(
                 painter: OrbitingBorderPainter(
                   animation: _orbitController,
-                  color: const Color(0xFF91C788),
+                  color: AppColors.primary,
                 ),
                 child: child,
               ),
@@ -132,7 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF52734D),
+                          color: AppColors.dark,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -176,7 +177,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                           height: 50,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF91C788),
+                              backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -198,7 +199,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                         onPressed: () => Navigator.pop(context),
                         child: const Text(
                           'Already have an account? Login',
-                          style: TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.w600),
+                          style: TextStyle(color: AppColors.dark, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
