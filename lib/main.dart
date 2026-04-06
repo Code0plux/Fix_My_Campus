@@ -9,7 +9,7 @@ import 'package:fix_my_campus/mapScreen.dart';
 import 'package:fix_my_campus/supabase_config.dart';
 import 'package:fix_my_campus/services/notification_service.dart';
 import 'package:fix_my_campus/core/constants/app_colors.dart';
-
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 
@@ -28,7 +28,10 @@ void main() async {
   } catch (e) {
     print('Initialization error: $e');
   }
-  
+  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+
+  OneSignal.initialize("9d4ccec5-d7b2-4cb3-a219-6089025a7cdd");
+  OneSignal.Notifications.requestPermission(true);
   runApp(const MyApp());
 } 
 
