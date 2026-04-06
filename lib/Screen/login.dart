@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Auth/auth_service.dart';
+import '../core/constants/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -67,8 +68,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFFFEFFDE),
-              const Color(0xFFDDFFBC),
+              AppColors.background,
+              AppColors.light,
             ],
           ),
         ),
@@ -82,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   return CustomPaint(
                     painter: OrbitingBorderPainter(
                       animation: _animationController,
-                      color: const Color(0xFF91C788),
+                      color: AppColors.primary,
                     ),
                     child: child,
                   );
@@ -104,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF52734D),
+                            color: AppColors.dark,
                           ),
                         ),
                         const SizedBox(height: 32),
@@ -112,22 +113,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           controller: _emailController,
                           decoration: InputDecoration(
                             labelText: 'Email',
-                            prefixIcon: const Icon(Icons.email, color: Color(0xFF52734D)),
+                            prefixIcon: const Icon(Icons.email, color: AppColors.dark),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF91C788)),
+                              borderSide: const BorderSide(color: AppColors.primary),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF91C788)),
+                              borderSide: const BorderSide(color: AppColors.primary),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF52734D), width: 2),
+                              borderSide: const BorderSide(color: AppColors.dark, width: 2),
                             ),
                             filled: true,
-                            fillColor: const Color(0xFFFEFFDE).withOpacity(0.3),
-                            labelStyle: const TextStyle(color: Color(0xFF52734D)),
+                            fillColor: AppColors.background.withOpacity(0.3),
+                            labelStyle: const TextStyle(color: AppColors.dark),
                           ),
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
@@ -145,22 +146,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           controller: _passwordController,
                           decoration: InputDecoration(
                             labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock, color: Color(0xFF52734D)),
+                            prefixIcon: const Icon(Icons.lock, color: AppColors.dark),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF91C788)),
+                              borderSide: const BorderSide(color: AppColors.primary),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF91C788)),
+                              borderSide: const BorderSide(color: AppColors.primary),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF52734D), width: 2),
+                              borderSide: const BorderSide(color: AppColors.dark, width: 2),
                             ),
                             filled: true,
-                            fillColor: const Color(0xFFFEFFDE).withOpacity(0.3),
-                            labelStyle: const TextStyle(color: Color(0xFF52734D)),
+                            fillColor: AppColors.background.withOpacity(0.3),
+                            labelStyle: const TextStyle(color: AppColors.dark),
                           ),
                           obscureText: true,
                           validator: (value) {
@@ -179,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           height: 50,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF91C788),
+                              backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -201,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           height: 50,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF91C788),
+                              backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),

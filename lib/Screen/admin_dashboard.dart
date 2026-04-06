@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../Auth/auth_service.dart';
+import '../core/constants/app_colors.dart';
 import 'complaint_detail_screen.dart';
 import 'admin_map_view.dart';
+import 'fixed_complaints_history.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -11,26 +13,26 @@ class AdminDashboard extends StatelessWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
-        return Colors.orange;
+        return AppColors.statusPending;
       case 'under_work':
-        return Colors.blue;
+        return AppColors.statusUnderWork;
       case 'fixed':
-        return Colors.green;
+        return AppColors.statusFixed;
       default:
-        return Colors.grey;
+        return AppColors.grey;
     }
   }
 
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'high':
-        return Colors.red;
+        return AppColors.priorityHigh;
       case 'medium':
-        return Colors.orange;
+        return AppColors.priorityMedium;
       case 'low':
-        return Colors.green;
+        return AppColors.priorityLow;
       default:
-        return Colors.grey;
+        return AppColors.grey;
     }
   }
 
@@ -52,8 +54,20 @@ class AdminDashboard extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
-        backgroundColor: const Color(0xFF91C788),
+        backgroundColor: AppColors.primary,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FixedComplaintsHistory(),
+                ),
+              );
+            },
+            tooltip: 'View Fixed Complaints History',
+          ),
           IconButton(
             icon: const Icon(Icons.map),
             onPressed: () {
@@ -91,21 +105,31 @@ class AdminDashboard extends StatelessWidget {
             );
           }
 
-          // Sort complaints by priority
           final complaints = snapshot.data!.docs;
-          complaints.sort((a, b) {
+          final activeComplaints = complaints.where((c) {
+            final data = c.data() as Map<String, dynamic>;
+            return (data['status'] ?? 'pending') != 'fixed';
+          }).toList();
+          
+          activeComplaints.sort((a, b) {
             final priorityA = _getPrioritySortValue(
                 (a.data() as Map<String, dynamic>)['priority'] ?? 'low');
             final priorityB = _getPrioritySortValue(
                 (b.data() as Map<String, dynamic>)['priority'] ?? 'low');
-            return priorityB.compareTo(priorityA); // High priority first
+            return priorityB.compareTo(priorityA);
           });
+          
+          if (activeComplaints.isEmpty) {
+            return const Center(
+              child: Text('No active complaints'),
+            );
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: complaints.length,
+            itemCount: activeComplaints.length,
             itemBuilder: (context, index) {
-              var complaint = complaints[index];
+              var complaint = activeComplaints[index];
               var data = complaint.data() as Map<String, dynamic>;
 
               return Card(
@@ -139,7 +163,7 @@ class AdminDashboard extends StatelessWidget {
                                   placeholder: (context, url) => Container(
                                     width: 60,
                                     height: 60,
-                                    color: Colors.grey[300],
+                                    color: AppColors.greyLight,
                                     child: const Center(
                                       child: SizedBox(
                                         width: 20,
@@ -153,7 +177,7 @@ class AdminDashboard extends StatelessWidget {
                                       Container(
                                     width: 60,
                                     height: 60,
-                                    color: Colors.grey[300],
+                                    color: AppColors.greyLight,
                                     child: const Icon(Icons.image_not_supported),
                                   ),
                                 ),
@@ -162,11 +186,11 @@ class AdminDashboard extends StatelessWidget {
                                 width: 60,
                                 height: 60,
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[300],
+                                  color: AppColors.greyLight,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(Icons.description,
-                                    color: Colors.grey[600], size: 30),
+                                    color: AppColors.grey, size: 30),
                               ),
                         const SizedBox(width: 12),
 
@@ -190,15 +214,15 @@ class AdminDashboard extends StatelessWidget {
                                   data['longitude'] != null)
                                 Text(
                                   'Location: ${data['latitude']?.toStringAsFixed(4)}, ${data['longitude']?.toStringAsFixed(4)}',
-                                  style: TextStyle(
-                                      fontSize: 11, color: Colors.grey[600]),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: AppColors.grey),
                                 ),
                               const SizedBox(height: 4),
                               if (data['createdAt'] != null)
                                 Text(
                                   'Submitted: ${(data['createdAt'] as Timestamp).toDate().toString().split(' ')[0]}',
-                                  style: TextStyle(
-                                      fontSize: 11, color: Colors.grey[600]),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: AppColors.grey),
                                 ),
                             ],
                           ),
@@ -244,7 +268,7 @@ class AdminDashboard extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
                             const Icon(Icons.arrow_forward_ios,
-                                size: 16, color: Colors.grey),
+                                size: 16, color: AppColors.grey),
                           ],
                         ),
                       ],
@@ -256,18 +280,39 @@ class AdminDashboard extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AdminMapView(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.map),
-        label: const Text('View Map'),
-        backgroundColor: const Color(0xFF91C788),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FixedComplaintsHistory(),
+                ),
+              );
+            },
+            heroTag: 'history',
+            tooltip: 'Fixed Complaints History',
+            backgroundColor: AppColors.statusFixed,
+            child: const Icon(Icons.history),
+          ),
+          const SizedBox(width: 16),
+          FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminMapView(),
+                ),
+              );
+            },
+            heroTag: 'map',
+            icon: const Icon(Icons.map),
+            label: const Text('View Map'),
+            backgroundColor: AppColors.primary,
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'Auth/auth_service.dart';
+import 'core/constants/app_colors.dart';
 import 'Screen/user_complaints_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -74,7 +75,7 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Report Issue Location"),
-        backgroundColor: const Color(0xFF91C788),
+        backgroundColor: AppColors.primary,
         actions: [
           IconButton(
             icon: const Icon(Icons.list),
@@ -98,10 +99,10 @@ class _MapScreenState extends State<MapScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            color: Colors.green.shade100,
+            color: AppColors.light,
             child: Row(
               children: [
-                const Icon(Icons.info, color: Colors.green),
+                const Icon(Icons.info, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(selectedLocation != null
@@ -119,7 +120,7 @@ class _MapScreenState extends State<MapScreen> {
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF91C788),
+                    backgroundColor: AppColors.primary,
                   ),
                   child: const Text('Create Complaint',
                       style: TextStyle(color: Colors.white)),
@@ -163,8 +164,8 @@ class _MapScreenState extends State<MapScreen> {
                   polygons: [
                     Polygon(
                       points: _campusBoundary,
-                      color: const Color(0xFF91C788).withOpacity(0.15),
-                      borderColor: const Color(0xFF91C788),
+                      color: AppColors.primary.withOpacity(0.15),
+                      borderColor: AppColors.primary,
                       borderStrokeWidth: 2,
                     ),
                   ],

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fix_my_campus/services/notification_service.dart';
 
 
 class AuthService {
@@ -13,7 +14,22 @@ class AuthService {
   static const String _usernameKey = 'username';
   static const String _emailKey = 'email';
 
+  Future<void> _saveFCMToken(String userId) async {
+    try {
+      final fcmToken = await NotificationService().getFCMToken();
+      if (fcmToken != null) {
+        await _firestore.collection('users').doc(userId).update({
+          'fcmToken': fcmToken,
+        });
+        print('FCM token saved for user: $userId');
+      }
+    } catch (e) {
+      print('Error saving FCM token: $e');
+    }
+  }
+
   Future<void> _saveUserSession(User user, bool isAdmin, String username) async {
+    await _saveFCMToken(user.uid);
     final prefs = await SharedPreferences.getInstance();
     final token = await user.getIdToken();
     

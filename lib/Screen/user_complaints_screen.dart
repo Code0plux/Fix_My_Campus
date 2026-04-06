@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../core/constants/app_colors.dart';
 
 class UserComplaintsScreen extends StatelessWidget {
   const UserComplaintsScreen({super.key});
@@ -9,13 +10,13 @@ class UserComplaintsScreen extends StatelessWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
-        return Colors.orange;
+        return AppColors.statusPending;
       case 'under_work':
-        return Colors.blue;
+        return AppColors.statusUnderWork;
       case 'fixed':
-        return Colors.green;
+        return AppColors.statusFixed;
       default:
-        return Colors.grey;
+        return AppColors.grey;
     }
   }
 
@@ -39,7 +40,7 @@ class UserComplaintsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Complaints'),
-        backgroundColor: const Color(0xFF91C788),
+        backgroundColor: AppColors.primary,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -73,20 +74,40 @@ class UserComplaintsScreen extends StatelessWidget {
             );
           }
 
-          // Sort complaints by creation date
           final complaints = snapshot.data!.docs;
-          complaints.sort((a, b) {
+          final activeComplaints = complaints.where((c) {
+            final data = c.data() as Map<String, dynamic>;
+            return (data['status'] ?? 'pending') != 'fixed';
+          }).toList();
+          
+          activeComplaints.sort((a, b) {
             final dateA = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
             final dateB = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
             if (dateA == null || dateB == null) return 0;
             return dateB.compareTo(dateA);
           });
+          
+          if (activeComplaints.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No active complaints',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: complaints.length,
+            itemCount: activeComplaints.length,
             itemBuilder: (context, index) {
-              var complaint = complaints[index];
+              var complaint = activeComplaints[index];
               var data = complaint.data() as Map<String, dynamic>;
 
               return Card(

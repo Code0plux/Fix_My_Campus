@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../core/constants/app_colors.dart';
 import 'complaint_detail_screen.dart';
 import 'fixed_complaints_history.dart';
 
@@ -44,31 +45,41 @@ class _AdminMapViewState extends State<AdminMapView> {
   }
 
   List<ComplaintCluster> _createClusters(List<DocumentSnapshot> complaints) {
+    const double clusterRadiusMeters = 10;
     List<ComplaintCluster> clusters = [];
-    const double clusterRadius = 0.001;
-
-    for (var complaint in complaints) {
-      var data = complaint.data() as Map<String, dynamic>;
+    List<bool> assigned = List.filled(complaints.length, false);
+    
+    for (int i = 0; i < complaints.length; i++) {
+      if (assigned[i]) continue;
+      
+      var data = complaints[i].data() as Map<String, dynamic>;
       double lat = data['latitude'];
       double lng = data['longitude'];
-      ComplaintCluster? nearbyCluster;
-      for (var cluster in clusters) {
-        double distance = _calculateDistance(lat, lng, cluster.latitude, cluster.longitude);
-        if (distance <= clusterRadius) {
-          nearbyCluster = cluster;
-          break;
+      
+      List<DocumentSnapshot> clusterComplaints = [complaints[i]];
+      assigned[i] = true;
+      
+      for (int j = i + 1; j < complaints.length; j++) {
+        if (assigned[j]) continue;
+        
+        var otherData = complaints[j].data() as Map<String, dynamic>;
+        double otherLat = otherData['latitude'];
+        double otherLng = otherData['longitude'];
+        
+        double distance = _calculateDistance(lat, lng, otherLat, otherLng);
+        if (distance <= clusterRadiusMeters) {
+          clusterComplaints.add(complaints[j]);
+          assigned[j] = true;
         }
       }
-      if (nearbyCluster != null) {
-        nearbyCluster.complaints.add(complaint);
-      } else {
-        clusters.add(ComplaintCluster(
-          latitude: lat,
-          longitude: lng,
-          complaints: [complaint],
-        ));
-      }
+      
+      clusters.add(ComplaintCluster(
+        latitude: lat,
+        longitude: lng,
+        complaints: clusterComplaints,
+      ));
     }
+    
     return clusters;
   }
 
@@ -84,6 +95,18 @@ class _AdminMapViewState extends State<AdminMapView> {
     return 'under_work';
   }
 
+  String _getHighestPriority(List<DocumentSnapshot> complaints) {
+    for (var complaint in complaints) {
+      var data = complaint.data() as Map<String, dynamic>;
+      if ((data['priority'] ?? 'low') == 'high') return 'high';
+    }
+    for (var complaint in complaints) {
+      var data = complaint.data() as Map<String, dynamic>;
+      if ((data['priority'] ?? 'low') == 'medium') return 'medium';
+    }
+    return 'low';
+  }
+
   void _showClusterDialog(ComplaintCluster cluster) {
     showDialog(
       context: context,
@@ -91,27 +114,25 @@ class _AdminMapViewState extends State<AdminMapView> {
         backgroundColor: Colors.transparent,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFFEFFDE),
+            color: AppColors.background,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF91C788), width: 1.5),
+            border: Border.all(color: AppColors.primary, width: 1.5),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFEFFDE),
+                  color: AppColors.background,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
                 ),
                 child: Text(
                   '${cluster.complaints.length} Complaint(s) here',
-                  style: const TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(color: AppColors.dark, fontWeight: FontWeight.bold, fontSize: 15),
                 ),
               ),
-              // List
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 320),
                 child: ListView.builder(
@@ -122,6 +143,7 @@ class _AdminMapViewState extends State<AdminMapView> {
                     var complaint = cluster.complaints[index];
                     var data = complaint.data() as Map<String, dynamic>;
                     final status = data['status'] ?? 'pending';
+                    final priority = data['priority'] ?? 'low';
                     return GestureDetector(
                       onTap: () {
                         Navigator.pop(context);
@@ -132,9 +154,9 @@ class _AdminMapViewState extends State<AdminMapView> {
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEFFDE),
+                          color: AppColors.background,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF91C788), width: 1),
+                          border: Border.all(color: AppColors.primary, width: 1),
                         ),
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -144,24 +166,24 @@ class _AdminMapViewState extends State<AdminMapView> {
                                   child: CachedNetworkImage(
                                     imageUrl: data['imageUrl'],
                                     width: 40, height: 40, fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(width: 40, height: 40, color: const Color(0xFF91C788)),
+                                    placeholder: (_, __) => Container(width: 40, height: 40, color: AppColors.primary),
                                     errorWidget: (_, __, ___) => Container(
-                                      width: 40, height: 40, color: const Color(0xFF91C788),
-                                      child: const Icon(Icons.image_not_supported, size: 18, color: Color(0xFF52734D))),
+                                      width: 40, height: 40, color: AppColors.primary,
+                                      child: const Icon(Icons.image_not_supported, size: 18, color: AppColors.dark)),
                                   ),
                                 )
                               : Container(
                                   width: 40, height: 40,
-                                  decoration: BoxDecoration(color: const Color(0xFF91C788), borderRadius: BorderRadius.circular(6)),
-                                  child: const Icon(Icons.description, size: 20, color: Color(0xFF52734D)),
+                                  decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
+                                  child: const Icon(Icons.description, size: 20, color: AppColors.dark),
                                 ),
                           title: Text(
                             data['complaint'] ?? 'No complaint text',
                             maxLines: 2, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Color(0xFF52734D), fontWeight: FontWeight.w600, fontSize: 13),
+                            style: const TextStyle(color: AppColors.dark, fontWeight: FontWeight.w600, fontSize: 13),
                           ),
-                          subtitle: Text('Status: $status',
-                            style: const TextStyle(color: Color(0xFF52734D), fontSize: 11)),
+                          subtitle: Text('Status: $status | Priority: ${priority.toUpperCase()}',
+                            style: const TextStyle(color: AppColors.dark, fontSize: 11)),
                           trailing: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
@@ -177,12 +199,11 @@ class _AdminMapViewState extends State<AdminMapView> {
                   },
                 ),
               ),
-              // Footer
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFEFFDE),
+                  color: AppColors.background,
                   borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
                 ),
                 child: Align(
@@ -190,8 +211,8 @@ class _AdminMapViewState extends State<AdminMapView> {
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFFEFFDE),
-                      backgroundColor: const Color(0xFF52734D),
+                      foregroundColor: AppColors.background,
+                      backgroundColor: AppColors.dark,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                     ),
@@ -209,13 +230,26 @@ class _AdminMapViewState extends State<AdminMapView> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
-        return const Color(0xFFE53935);
+        return AppColors.statusPending;
       case 'under_work':
-        return const Color(0xFFFB8C00);
+        return AppColors.statusUnderWork;
       case 'fixed':
-        return Colors.green;
+        return AppColors.statusFixed;
       default:
-        return Colors.grey;
+        return AppColors.grey;
+    }
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case 'high':
+        return AppColors.priorityHigh;
+      case 'medium':
+        return AppColors.priorityMedium;
+      case 'low':
+        return AppColors.priorityLow;
+      default:
+        return AppColors.grey;
     }
   }
 
@@ -224,7 +258,7 @@ class _AdminMapViewState extends State<AdminMapView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Complaints Map'),
-        backgroundColor: const Color(0xFF91C788),
+        backgroundColor: AppColors.primary,
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
@@ -254,7 +288,7 @@ class _AdminMapViewState extends State<AdminMapView> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.location_off, size: 64, color: Colors.grey),
+                      Icon(Icons.location_off, size: 64, color: AppColors.grey),
                       const SizedBox(height: 16),
                       const Text('No active complaints found'),
                     ],
@@ -262,31 +296,61 @@ class _AdminMapViewState extends State<AdminMapView> {
                 )
               : Column(
                   children: [
-                    // Legend
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(children: [
-                            const SizedBox(width: 44, height: 44, child: _PendingMarker()),
-                            const SizedBox(width: 8),
-                            const Text('Pending', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFE53935))),
-                          ]),
-                          Container(width: 1, height: 24, color: Colors.grey.shade300),
-                          Row(children: [
-                            const SizedBox(width: 44, height: 44, child: _UnderWorkMarker()),
-                            const SizedBox(width: 8),
-                            const Text('Under Work', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFFB8C00))),
-                          ]),
+                          const Text('Priority Levels:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Row(children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.priorityHigh,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text('High', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              ]),
+                              Row(children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.priorityMedium,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text('Medium', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              ]),
+                              Row(children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.priorityLow,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text('Low', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              ]),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                    // Map
                     Expanded(
                       child: FlutterMap(
                         options: MapOptions(
@@ -308,16 +372,17 @@ class _AdminMapViewState extends State<AdminMapView> {
                           ),
                           MarkerLayer(
                             markers: clusters.map((cluster) {
-                              final status = _getClusterStatus(cluster.complaints);
+                              final priority = _getHighestPriority(cluster.complaints);
                               return Marker(
                                 point: LatLng(cluster.latitude, cluster.longitude),
                                 width: 50,
-                                height: 50,
+                                height: 60,
                                 child: GestureDetector(
                                   onTap: () => _showClusterDialog(cluster),
-                                  child: status == 'pending'
-                                      ? const _PendingMarker()
-                                      : const _UnderWorkMarker(),
+                                  child: PriorityMarker(
+                                    priority: priority,
+                                    count: cluster.complaints.length,
+                                  ),
                                 ),
                               );
                             }).toList(),
@@ -329,210 +394,118 @@ class _AdminMapViewState extends State<AdminMapView> {
                 ),
     );
   }
-
 }
 
-// Pending marker — dot with triangle projecting outward + fill animation
-class _PendingMarker extends StatefulWidget {
-  const _PendingMarker();
-  @override
-  State<_PendingMarker> createState() => _PendingMarkerState();
-}
+class PriorityMarker extends StatelessWidget {
+  final String priority;
+  final int count;
 
-class _PendingMarkerState extends State<_PendingMarker>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  const PriorityMarker({
+    required this.priority,
+    required this.count,
+  });
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
+  Color _getPriorityColor() {
+    switch (priority) {
+      case 'high':
+        return AppColors.priorityHigh;
+      case 'medium':
+        return AppColors.priorityMedium;
+      case 'low':
+        return AppColors.priorityLow;
+      default:
+        return AppColors.grey;
+    }
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  IconData _getComplaintIcon() {
+    return Icons.warning_amber_rounded;
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, __) => CustomPaint(
-        painter: _PendingPainter(_controller.value),
-      ),
-    );
-  }
-}
+    final color = _getPriorityColor();
+    final icon = _getComplaintIcon();
 
-class _PendingPainter extends CustomPainter {
-  final double progress;
-  _PendingPainter(this.progress);
-
-  static const _pi = 3.14159265358979;
-
-  double _cos(double x) {
-    x = x % (2 * _pi);
-    return 1 - (x * x) / 2 + (x * x * x * x) / 24;
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height - 4;
-
-    // --- Solid triangle with fill animation ---
-    final fillLevel = 0.5 - 0.5 * _cos(progress * 2 * _pi);
-    final triH = cy - 10;
-    final triW = size.width * 0.65;
-    final top = cy - triH - 10;
-    final left = cx - triW / 2;
-    final right = cx + triW / 2;
-
-    final solidTri = Path()
-      ..moveTo(cx, top)
-      ..lineTo(right, cy - 12)
-      ..lineTo(left, cy - 12)
-      ..close();
-
-    canvas.save();
-    canvas.clipPath(solidTri);
-    final fillY = (cy - 12) - ((cy - 12) * 2 * fillLevel);
-    canvas.drawRect(
-      Rect.fromLTRB(0, fillY, size.width, cy),
-      Paint()..color = const Color(0xFFE53935),
-    );
-    canvas.restore();
-
-    canvas.drawPath(
-      solidTri,
-      Paint()
-        ..color = Colors.black
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..strokeJoin = StrokeJoin.round,
-    );
-
-    final tp = TextPainter(
-      text: TextSpan(
-        text: '!',
-        style: TextStyle(
-          color: fillLevel > 0.4 ? Colors.white : const Color(0xFFE53935),
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-          height: 1,
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.6),
+                blurRadius: 16,
+                spreadRadius: 6,
+              ),
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                blurRadius: 24,
+                spreadRadius: 10,
+              ),
+            ],
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, top + triH * 0.45));
-
-    // --- Pin dot ---
-    canvas.drawCircle(Offset(cx, cy), 5, Paint()..color = const Color(0xFFE53935));
-    canvas.drawCircle(Offset(cx, cy), 5,
-        Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5);
-  }
-
-  @override
-  bool shouldRepaint(_PendingPainter old) => old.progress != progress;
-}
-
-// Under Work marker — dot with circle projecting outward + spinning arc
-class _UnderWorkMarker extends StatefulWidget {
-  const _UnderWorkMarker();
-  @override
-  State<_UnderWorkMarker> createState() => _UnderWorkMarkerState();
-}
-
-class _UnderWorkMarkerState extends State<_UnderWorkMarker>
-    with TickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, __) => CustomPaint(
-        painter: _UnderWorkPainter(_controller.value),
-      ),
-    );
-  }
-}
-
-class _UnderWorkPainter extends CustomPainter {
-  final double progress;
-  _UnderWorkPainter(this.progress);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height - 4;
-    final maxR = size.width / 3;
-    final circleCenter = Offset(cx, cy - maxR - 12);
-
-    // --- Solid circle ---
-    canvas.drawCircle(circleCenter, maxR, Paint()..color = const Color(0xFFFB8C00));
-
-    // --- Spinning grey arc - thicker, outside circle ---
-    canvas.drawArc(
-      Rect.fromCircle(center: circleCenter, radius: maxR + 5),
-      progress * 6.28318 * 2,
-      4.5,
-      false,
-      Paint()
-        ..color = const Color(0xFF424242)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // White border
-    canvas.drawCircle(circleCenter, maxR,
-        Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
-
-    // Grey wrench icon
-    final iconPainter = TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(Icons.build.codePoint),
-        style: TextStyle(
-          fontSize: maxR * 1.1,
-          fontFamily: Icons.build.fontFamily,
-          package: Icons.build.fontPackage,
-          color: const Color(0xFF757575),
-          height: 1,
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: 2.5),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.4),
+                blurRadius: 6,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(
+              icon,
+              color: color,
+              size: 28,
+            ),
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    iconPainter.paint(canvas, Offset(circleCenter.dx - iconPainter.width / 2, circleCenter.dy - iconPainter.height / 2));
-
-    // --- Pin dot ---
-    canvas.drawCircle(Offset(cx, cy), 5, Paint()..color = const Color(0xFFFB8C00));
-    canvas.drawCircle(Offset(cx, cy), 5,
-        Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5);
+        if (count > 1)
+          Positioned(
+            bottom: -2,
+            right: -2,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.5),
+                    blurRadius: 4,
+                    spreadRadius: 0.5,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  count > 99 ? '99+' : count.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
-
-  @override
-  bool shouldRepaint(_UnderWorkPainter old) => old.progress != progress;
 }
 
 class ComplaintCluster {
