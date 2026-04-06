@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../Auth/auth_service.dart';
 import '../core/constants/app_colors.dart';
+import '../services/onesignal_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,6 +47,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       setState(() => _isLoading = false);
       
       if (result['success']) {
+        await OneSignalService().saveUserOneSignalId(_emailController.text.trim());
+        
         if (result['isAdmin']) {
           Navigator.pushReplacementNamed(context, '/admin');
         } else {
